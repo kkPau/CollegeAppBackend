@@ -16,9 +16,8 @@ public class StudentDTO
     [Required(ErrorMessage = "Student address is required")]
     public string Address { get; set; }
 
-    // [DateCheck]
-    // [Required]
-    // public DateTime Date { get; set; }
+    [Required]
+    public string DOB { get; set; }
 
     // public string Password { get; set; }
 
