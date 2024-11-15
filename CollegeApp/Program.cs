@@ -1,5 +1,6 @@
 using CollegeApp.Configurations;
 using CollegeApp.Data;
+using CollegeApp.Data.Repository;
 using CollegeApp.MyLogging;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,6 +31,9 @@ builder.Services.AddDbContext<CollegeDbContext>(
     options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
+// Add repository pattern services
+builder.Services.AddTransient<IStudentRepository, StudentRepository>();
+
 // Add automapper
 builder.Services.AddAutoMapper(typeof(AutoMapperConfig));
 
@@ -37,7 +41,7 @@ builder.Services.AddAutoMapper(typeof(AutoMapperConfig));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddScoped<IMyLogger, LogToFile>();
+builder.Services.AddTransient<IMyLogger, LogToFile>();
 
 var app = builder.Build();
 

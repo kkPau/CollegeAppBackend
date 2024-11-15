@@ -1,9 +1,9 @@
 using AutoMapper;
 using CollegeApp.Data;
+using CollegeApp.Data.Repository;
 using CollegeApp.Models;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace CollegeApp.Controllers;
 
@@ -12,14 +12,14 @@ namespace CollegeApp.Controllers;
 public class StudentController : ControllerBase
 {
     private readonly ILogger<StudentController> _logger;
-    private readonly CollegeDbContext _dbContext;
     private readonly IMapper _mapper;
+    private readonly IStudentRepository _studentRepository;
 
-    public StudentController(ILogger<StudentController> logger, CollegeDbContext dbContext, IMapper mapper)
+    public StudentController(ILogger<StudentController> logger, IMapper mapper, IStudentRepository studentRepository)
     {
         _logger = logger;
-        _dbContext = dbContext;
         _mapper = mapper;
+        _studentRepository = studentRepository;
     }
 
     [HttpGet]
@@ -47,7 +47,7 @@ public class StudentController : ControllerBase
         //     DOB = student.DOB.ToShortDateString()
         // }).ToListAsync();
 
-        var students = await _dbContext.Students.ToListAsync();
+        var students = await _studentRepository.GetAllStudents();
 
         // Map the Student model to StudentDTO using automapper
         var studentDTOData = _mapper.Map<List<StudentDTO>>(students);
@@ -69,7 +69,7 @@ public class StudentController : ControllerBase
             return BadRequest("Invalid Student ID");
         }
         
-        var student = await _dbContext.Students.Where(student => student.Id == id).FirstOrDefaultAsync();
+        var student = await _studentRepository.GetStudentById(id);
 
         // Not Found - 404 - Student not found
         if(student is null) {
@@ -100,7 +100,7 @@ public class StudentController : ControllerBase
         // Bad Request - 400 - Invalid request
         if(string.IsNullOrEmpty(name)) return BadRequest("Invalid Student ID");
         
-        var student = await _dbContext.Students.Where(student => student.StudentName.Contains(name)).FirstOrDefaultAsync();
+        var student = await _studentRepository.GetStudentByStudentName(name);
 
         // Not Found - 404 - Student not found
         if(student is null) return NotFound($"Student with name {name} not found");
@@ -137,8 +137,7 @@ public class StudentController : ControllerBase
         // Map the StudentDTO to Student model using automapper
         Student student = _mapper.Map<Student>(dto);
 
-        await _dbContext.Students.AddAsync(student);
-        await _dbContext.SaveChangesAsync();
+        await _studentRepository.CreateStudent(student);
 
         var studentDTO = new StudentDTO{
             StudentName = student.StudentName,
@@ -160,7 +159,7 @@ public class StudentController : ControllerBase
     public async Task<ActionResult<StudentDTO>> UpdateStudent(int id, [FromBody] StudentDTO dto){
         if(dto == null || id <= 0) return BadRequest();
 
-        var existingStudent = await _dbContext.Students.AsNoTracking().Where(student => student.Id == id).FirstOrDefaultAsync();
+        var existingStudent = await _studentRepository.GetStudentById(id, true);
 
         if (existingStudent is null) return NotFound();
 
@@ -175,14 +174,13 @@ public class StudentController : ControllerBase
         // Map the StudentDTO to Student model using automapper
         var newRecord = _mapper.Map<Student>(dto);
 
-        _dbContext.Students.Update(newRecord);
-
         // existingStudent.StudentName = model.StudentName;
         // existingStudent.Email = model.Email;
         // existingStudent.Address = model.Address;
         // existingStudent.DOB = Convert.ToDateTime(model.DOB);
 
-        await _dbContext.SaveChangesAsync();
+        await _studentRepository.UpdateStudent(newRecord);
+        
 
         // No Content - 204
         return NoContent();
@@ -197,7 +195,7 @@ public class StudentController : ControllerBase
     public async Task<ActionResult<StudentDTO>> UpdateStudentPartial(int id, [FromBody] JsonPatchDocument<StudentDTO> patchDocument){
         if(patchDocument == null || id <= 0) return BadRequest();
 
-        var existingStudent = await _dbContext.Students.AsNoTracking().Where(student => student.Id == id).FirstOrDefaultAsync();
+        var existingStudent = await _studentRepository.GetStudentById(id, true);
 
         if (existingStudent is null) return NotFound();
 
@@ -221,9 +219,7 @@ public class StudentController : ControllerBase
 
         existingStudent = _mapper.Map<Student>(studentDTO);
 
-        _dbContext.Students.Update(existingStudent);
-
-        await _dbContext.SaveChangesAsync();
+        await _studentRepository.UpdateStudent(existingStudent);
 
         // No Content - 204
         return NoContent();
@@ -239,14 +235,12 @@ public class StudentController : ControllerBase
         // Bad Request - 400 - Invalid request
         if(id <= 0) return BadRequest("Invalid Student ID");
         
-        var student = await _dbContext.Students.Where(student => student.Id == id).FirstOrDefaultAsync();
+        var student = await _studentRepository.GetStudentById(id);
 
         // Not Found - 404 - Student not found
         if(student is null) return NotFound($"Student with ID {id} not found");
 
-        _dbContext.Students.Remove(student);
-
-        await _dbContext.SaveChangesAsync();
+        await _studentRepository.DeleteStudent(student);
 
         // OK - 200 - Success
         return NoContent();
